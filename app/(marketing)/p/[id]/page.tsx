@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, ShoppingCart, Shield, Zap, RotateCcw, Check, Star,
@@ -117,6 +117,7 @@ function GallerySection({ product }: { product: Product }) {
 
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { lang, t } = useLang();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -125,7 +126,7 @@ export default function ProductPage() {
   const [buying, setBuying] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [userPlan, setUserPlan] = useState<string | null>(null);
-  const [claimSuccess, setClaimSuccess] = useState(false);
+  const [claimSuccess, setClaimSuccess] = useState(searchParams.get("payment") === "success");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
