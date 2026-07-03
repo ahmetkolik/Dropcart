@@ -38,11 +38,11 @@ const typeIcon: Record<ProductType, React.ElementType> = {
 };
 
 const STATIC_HERO_SLIDES = [
-  { id: "h1", emoji: "🗂️", hue: "32",  type: { tr: "Şablon",  en: "Template" }, title: { tr: "Notion ile Hayat Sistemi",     en: "Notion Life OS"                }, price: null, badge: { tr: "En çok satan", en: "Best seller" }, image: null },
-  { id: "h2", emoji: "🎞️", hue: "350", type: { tr: "Preset",   en: "Preset"   }, title: { tr: "Sinematik Lightroom Paketi",   en: "Cinematic Lightroom Pack"      }, price: null, badge: { tr: "Trend",        en: "Trending"   }, image: null },
-  { id: "h3", emoji: "📘", hue: "70",  type: { tr: "E-kitap",  en: "Ebook"    }, title: { tr: "Freelancer'ın El Kitabı",      en: "The Freelancer's Handbook"     }, price: null, badge: { tr: "Çok satılan",  en: "Top rated"  }, image: null },
-  { id: "h4", emoji: "🎓", hue: "152", type: { tr: "Kurs",     en: "Course"   }, title: { tr: "30 Günde Topluluk Kur",        en: "Build a Community in 30 Days"  }, price: null, badge: { tr: "Yeni",         en: "New"        }, image: null },
-  { id: "h5", emoji: "🎠", hue: "300", type: { tr: "Şablon",   en: "Template" }, title: { tr: "Instagram Carousel Şablonları", en: "Instagram Carousel Templates" }, price: null, badge: { tr: "Popüler",      en: "Popular"    }, image: null },
+  { id: "h1", emoji: "🗂️", hue: "32",  type: { tr: "Şablon",  en: "Template" }, title: { tr: "Notion ile Hayat Sistemi",     en: "Notion Life OS"                }, price: null, badge: { tr: "En çok satan", en: "Best seller" }, image: null, sales: { tr: "412 satış", en: "412 sales" } },
+  { id: "h2", emoji: "🎞️", hue: "350", type: { tr: "Preset",   en: "Preset"   }, title: { tr: "Sinematik Lightroom Paketi",   en: "Cinematic Lightroom Pack"      }, price: null, badge: { tr: "Trend",        en: "Trending"   }, image: null, sales: { tr: "706 satış", en: "706 sales" } },
+  { id: "h3", emoji: "📘", hue: "70",  type: { tr: "E-kitap",  en: "Ebook"    }, title: { tr: "Freelancer'ın El Kitabı",      en: "The Freelancer's Handbook"     }, price: null, badge: { tr: "Çok satılan",  en: "Top rated"  }, image: null, sales: { tr: "528 satış", en: "528 sales" } },
+  { id: "h4", emoji: "🎓", hue: "152", type: { tr: "Kurs",     en: "Course"   }, title: { tr: "30 Günde Topluluk Kur",        en: "Build a Community in 30 Days"  }, price: null, badge: { tr: "Yeni",         en: "New"        }, image: null, sales: { tr: "134 satış", en: "134 sales" } },
+  { id: "h5", emoji: "🎠", hue: "300", type: { tr: "Şablon",   en: "Template" }, title: { tr: "Instagram Carousel Şablonları", en: "Instagram Carousel Templates" }, price: null, badge: { tr: "Popüler",      en: "Popular"    }, image: null, sales: { tr: "389 satış", en: "389 sales" } },
 ];
 
 const TYPE_LABELS: Record<ProductType, { tr: string; en: string }> = {
@@ -67,6 +67,7 @@ type HeroSlide = {
   price: number | null;
   badge: { tr: string; en: string };
   image: string | null;
+  sales?: { tr: string; en: string };
 };
 
 function buildHeroSlides(products: Product[]): HeroSlide[] {
@@ -312,6 +313,11 @@ function Hero({ slides }: { slides: HeroSlide[] }) {
                           style={{ fontSize: 20, color: "oklch(20% 0.04 35)", margin: 0 }}>
                           {sl.title[lang]}
                         </p>
+                        {sl.sales && (
+                          <span className="text-[12.5px] font-medium" style={{ color: "oklch(45% 0.04 35)" }}>
+                            {sl.sales[lang]}
+                          </span>
+                        )}
                       </>
                     )}
 
