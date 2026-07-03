@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import JSZip from "jszip";
 import {
-  Plus, Wallet, BookOpen, LayoutTemplate, SlidersHorizontal, GraduationCap, Pencil, Loader2, X, ImagePlus, ArrowUpRight, FileUp, Download,
+  Plus, Wallet, BookOpen, LayoutTemplate, SlidersHorizontal, GraduationCap, Pencil, Loader2, X, ImagePlus, ArrowUpRight, FileUp, FolderUp, Files, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -60,7 +61,22 @@ interface EditableProduct {
   description_en?: string | null;
 }
 
-const FILE_ACCEPT = ".pdf,.zip,.epub,.docx,.xlsx,.pptx,.mp4,.mp3,.png,.jpg,.jpeg,.gif,.svg,.ai,.psd,.figma";
+/** Multiple files or a folder are zipped client-side into one file, so a single upload/DB column keeps working unchanged. */
+async function filesToSingleFile(fileList: FileList, zipBaseName: string): Promise<File> {
+  const files = Array.from(fileList);
+  const isFolder = files.some((f) => (f as File & { webkitRelativePath?: string }).webkitRelativePath);
+  if (files.length === 1 && !isFolder) return files[0];
+
+  const zip = new JSZip();
+  for (const f of files) {
+    const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    zip.file(path, f);
+  }
+  const blob = await zip.generateAsync({ type: "blob" });
+  return new File([blob], `${zipBaseName}.zip`, { type: "application/zip" });
+}
+
+const folderInputProps = { webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>;
 
 function ProductModal({
   onClose,
@@ -81,6 +97,8 @@ function ProductModal({
   const [galleryPreviews, setGalleryPreviews] = useState<(string | null)[]>(editProduct?.gallery_images?.slice(0, 4) ?? [null, null, null, null]);
   const [digitalFileTr, setDigitalFileTr] = useState<File | null>(null);
   const [digitalFileEn, setDigitalFileEn] = useState<File | null>(null);
+  const [zippingTr, setZippingTr] = useState(false);
+  const [zippingEn, setZippingEn] = useState(false);
   const [form, setForm] = useState({
     title: editProduct?.title ?? "",
     type: (editProduct?.type ?? "ebook") as ProductType,
@@ -100,6 +118,39 @@ function ProductModal({
     if (!file) return;
     setCategoryImageFile(file);
     setCategoryImagePreview(URL.createObjectURL(file));
+  }
+
+  function handleGalleryMultiple(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    const newFiles = [...galleryFiles];
+    const newPreviews = [...galleryPreviews];
+    let fi = 0;
+    for (let i = 0; i < 4 && fi < files.length; i++) {
+      if (!newFiles[i]) {
+        newFiles[i] = files[fi];
+        newPreviews[i] = URL.createObjectURL(files[fi]);
+        fi++;
+      }
+    }
+    setGalleryFiles(newFiles);
+    setGalleryPreviews(newPreviews);
+    e.target.value = "";
+  }
+
+  async function handleDigitalFiles(e: React.ChangeEvent<HTMLInputElement>, which: "tr" | "en") {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    const setZipping = which === "tr" ? setZippingTr : setZippingEn;
+    const setDigitalFile = which === "tr" ? setDigitalFileTr : setDigitalFileEn;
+    setZipping(true);
+    try {
+      const file = await filesToSingleFile(fileList, `product-file-${which}`);
+      setDigitalFile(file);
+    } finally {
+      setZipping(false);
+      e.target.value = "";
+    }
   }
 
   async function uploadFile(file: File, path: string): Promise<string> {
@@ -285,7 +336,13 @@ function ProductModal({
 
           {/* Gallery images (4 slots = total 5 with cover) */}
           <div className="space-y-2">
-            <Label>{lang === "tr" ? "Ürün Galeri Görselleri (maks. 4 ek görsel)" : "Product Gallery Images (max 4 extra)"}</Label>
+            <div className="flex items-center justify-between">
+              <Label>{lang === "tr" ? "Ürün Galeri Görselleri (maks. 4 ek görsel)" : "Product Gallery Images (max 4 extra)"}</Label>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryMultiple} />
+                <Files className="h-3.5 w-3.5" /> {lang === "tr" ? "Birden fazla ekle" : "Add multiple"}
+              </label>
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {[0, 1, 2, 3].map((i) => (
                 <label key={i} className="relative aspect-square cursor-pointer overflow-hidden rounded-lg border border-dashed border-border hover:border-primary transition">
@@ -337,11 +394,18 @@ function ProductModal({
             <Label>{lang === "tr" ? "🇹🇷 Türkçe Dosya (PDF, ZIP…)" : "🇹🇷 Turkish File (PDF, ZIP…)"}</Label>
             <div className="flex gap-2">
               <label className="flex flex-1 h-10 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground transition hover:border-primary hover:text-primary">
-                <input type="file" accept={FILE_ACCEPT} className="hidden" onChange={(e) => setDigitalFileTr(e.target.files?.[0] ?? null)} />
+                <input type="file" multiple className="hidden" onChange={(e) => handleDigitalFiles(e, "tr")} />
                 <FileUp className="h-4 w-4 shrink-0" />
                 <span className="truncate">
-                  {digitalFileTr ? digitalFileTr.name : (editProduct?.file_url ? (lang === "tr" ? "Dosya mevcut — değiştir" : "File exists — replace") : (lang === "tr" ? "Dosya seç" : "Choose file"))}
+                  {zippingTr ? (lang === "tr" ? "Sıkıştırılıyor…" : "Zipping…") : digitalFileTr ? digitalFileTr.name : (editProduct?.file_url ? (lang === "tr" ? "Dosya mevcut — değiştir" : "File exists — replace") : (lang === "tr" ? "Dosya(lar) seç" : "Choose file(s)"))}
                 </span>
+              </label>
+              <label
+                title={lang === "tr" ? "Klasör seç" : "Choose folder"}
+                className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground transition hover:border-primary hover:text-primary"
+              >
+                <input type="file" {...folderInputProps} multiple className="hidden" onChange={(e) => handleDigitalFiles(e, "tr")} />
+                <FolderUp className="h-4 w-4" />
               </label>
               {editProduct?.file_url && (
                 <a
@@ -362,11 +426,18 @@ function ProductModal({
             <Label>{lang === "tr" ? "🇬🇧 İngilizce Dosya (PDF, ZIP…)" : "🇬🇧 English File (PDF, ZIP…)"}</Label>
             <div className="flex gap-2">
               <label className="flex flex-1 h-10 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground transition hover:border-primary hover:text-primary">
-                <input type="file" accept={FILE_ACCEPT} className="hidden" onChange={(e) => setDigitalFileEn(e.target.files?.[0] ?? null)} />
+                <input type="file" multiple className="hidden" onChange={(e) => handleDigitalFiles(e, "en")} />
                 <FileUp className="h-4 w-4 shrink-0" />
                 <span className="truncate">
-                  {digitalFileEn ? digitalFileEn.name : (editProduct?.file_url_en ? (lang === "tr" ? "Dosya mevcut — değiştir" : "File exists — replace") : (lang === "tr" ? "Dosya seç" : "Choose file"))}
+                  {zippingEn ? (lang === "tr" ? "Sıkıştırılıyor…" : "Zipping…") : digitalFileEn ? digitalFileEn.name : (editProduct?.file_url_en ? (lang === "tr" ? "Dosya mevcut — değiştir" : "File exists — replace") : (lang === "tr" ? "Dosya(lar) seç" : "Choose file(s)"))}
                 </span>
+              </label>
+              <label
+                title={lang === "tr" ? "Klasör seç" : "Choose folder"}
+                className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground transition hover:border-primary hover:text-primary"
+              >
+                <input type="file" {...folderInputProps} multiple className="hidden" onChange={(e) => handleDigitalFiles(e, "en")} />
+                <FolderUp className="h-4 w-4" />
               </label>
               {editProduct?.file_url_en && (
                 <a
@@ -381,6 +452,11 @@ function ProductModal({
                 </a>
               )}
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              {lang === "tr"
+                ? "Birden fazla dosya veya bir klasör seçersen otomatik olarak tek bir .zip dosyasında birleştirilir."
+                : "Selecting multiple files or a folder automatically bundles them into a single .zip file."}
+            </p>
           </div>
 
           <label className="flex cursor-pointer items-center gap-3">
